@@ -1,10 +1,10 @@
 Evaluation License Agreement
 
-Version 1.0 — © thomas
+Version 1.1 — © thomas
 
 
 
-This Evaluation License Agreement (“Agreement”) governs the limited evaluation use of the software, source code, models, algorithms, documentation, and related materials (“Technology”) provided by thomas (“Licensor”) to the receiving party (“Evaluator”).
+This Evaluation License Agreement (“Agreement”) governs the limited evaluation use of the software, source code, models, algorithms, documentation, updates, upgrades, enhancements, derivative components, and all related materials (“Technology”) provided by thomas (“Licensor”) to the receiving party (“Evaluator”).
 
 
 
@@ -22,7 +22,7 @@ Evaluator receives no rights beyond evaluation.
 
 
 
-Evaluator may not:
+Evaluator may not, under any circumstances:
 
 
 
@@ -42,7 +42,7 @@ integrate the Technology into any product, service, or system
 
 
 
-use the Technology to develop competing technology
+use the Technology to develop, train, or improve any competing technology
 
 
 
@@ -54,7 +54,11 @@ use the Technology to generate datasets for model training
 
 
 
-use the Technology for benchmarking, comparison, or publication
+use the Technology for benchmarking, comparison, publication, or external demonstration
+
+
+
+use the Technology after the evaluation period ends
 
 
 
@@ -64,7 +68,51 @@ All rights not expressly granted are reserved by Licensor.
 
 2\. Ownership
 
-Licensor retains exclusive ownership of all intellectual property rights in the Technology, including all modifications, enhancements, derivative works, feedback, and evaluation results.
+Licensor retains exclusive ownership of all intellectual property rights in the Technology, including:
+
+
+
+all updates
+
+
+
+all upgrades
+
+
+
+all enhancements
+
+
+
+all modifications
+
+
+
+all extensions
+
+
+
+all revisions
+
+
+
+all derivative works
+
+
+
+all future versions
+
+
+
+all performance improvements
+
+
+
+all architectural changes
+
+
+
+all GPU kernels, routing systems, predictors, solvers, memory systems, and flow fields
 
 
 
@@ -72,7 +120,7 @@ Evaluator receives no ownership, no title, and no rights to create derivative wo
 
 
 
-3\. Restrictions (No Loopholes)
+3\. Restrictions (Zero Loopholes)
 
 Evaluator shall not, directly or indirectly:
 
@@ -110,11 +158,15 @@ use the Technology to build, train, or improve competing systems
 
 
 
-store or retain the Technology after evaluation
+store, retain, or archive the Technology after evaluation
 
 
 
 circumvent any technical protection or licensing mechanism
+
+
+
+claim any implied, customary, or industry‑standard rights
 
 
 
@@ -182,15 +234,15 @@ Failure to certify destruction constitutes breach.
 
 
 
-6\. No Commercial Rights
+6\. No Commercial Rights (Single Path Forward)
 
 Evaluator acknowledges and agrees:
 
 
 
-Commercial use is strictly prohibited.
+\*\*Commercial use is strictly prohibited.
 
-To obtain commercial rights, Evaluator must either:
+There is only one path to commercial rights:\*\*
 
 
 
@@ -206,7 +258,35 @@ No other path exists.
 
 
 
-Evaluator may not claim implied rights, customary rights, or industry‑standard rights.
+Evaluator may not claim:
+
+
+
+implied rights
+
+
+
+customary rights
+
+
+
+industry‑standard rights
+
+
+
+rights arising from usage
+
+
+
+rights arising from updates or upgrades
+
+
+
+rights arising from continued evaluation
+
+
+
+All updates, upgrades, enhancements, modifications, extensions, revisions, and derivative components of the Technology are automatically covered under this Agreement and do not grant any new rights.
 
 
 
@@ -314,25 +394,5 @@ This Agreement constitutes the entire agreement between the parties and supersed
 
 
 
-All updates, upgrades, enhancements, modifications, extensions, revisions, 
-
-and derivative components of the Roundabout Ising Decoder—including but not 
-
-limited to new features, performance improvements, GPU kernels, routing systems, 
-
-predictor refinements, memory systems, solver upgrades, architectural changes, 
-
-and any future additions to this codebase—are automatically covered under the 
-
-terms of this license. No update or upgrade shall constitute a grant of new 
-
-rights, expanded rights, or altered rights beyond those explicitly stated in 
-
-this license. All improvements remain evaluation‑only, non‑transferable, and 
-
-subject to the same restrictions, limitations, and permitted uses as the 
-
-original licensed materials.
-
-
+No update, upgrade, enhancement, or future version of the Technology shall modify, expand, or alter the rights granted under this Agreement.
 

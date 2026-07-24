@@ -24,6 +24,23 @@ pub struct RevolvingDoor {
 
     /// Door size (number of total sites)
     pub size: usize,
+
+    // --- NEW: Tunneling-aware door state ---
+
+    /// Optional tunnel exit sites (virtual exits / overlay paths).
+    pub tunnel_exit_sites: Vec<usize>,
+
+    /// Cached tunnel flow vector (tunnel exit centroid − entry centroid).
+    pub tunnel_flow_vec: (f32, f32),
+
+    /// Last computed tunnel score for this door.
+    pub tunnel_score: f32,
+
+    /// Cached tunnel heat (average over tunnel exits).
+    pub tunnel_heat: f32,
+
+    /// Reliability score for using this door as a tunnel path.
+    pub tunnel_reliability: f32,
 }
 
 impl RevolvingDoor {
@@ -58,6 +75,13 @@ impl RevolvingDoor {
         // --- Door size ---
         let size = all_sites.len();
 
+        // --- NEW: initialize tunneling fields ---
+        let tunnel_exit_sites = Vec::new();
+        let tunnel_flow_vec = (0.0f32, 0.0f32);
+        let tunnel_score = 0.0f32;
+        let tunnel_heat = 0.0f32;
+        let tunnel_reliability = 1.0f32;
+
         Self {
             id,
             entry_sites,
@@ -69,6 +93,11 @@ impl RevolvingDoor {
             bbox_max,
             flow_vec,
             size,
+            tunnel_exit_sites,
+            tunnel_flow_vec,
+            tunnel_score,
+            tunnel_heat,
+            tunnel_reliability,
         }
     }
 
@@ -190,6 +219,46 @@ impl RevolvingDoor {
             sum += heat[idx];
         }
         sum / (self.exit_sites.len() as f32)
+    }
+
+    // --- NEW: tunneling helpers ---
+
+    /// Set tunnel exit sites and recompute tunnel flow vector.
+    pub fn set_tunnel_exits(&mut self, tunnel_sites: Vec<usize>, width: usize) {
+        self.tunnel_exit_sites = tunnel_sites;
+        if self.entry_sites.is_empty() || self.tunnel_exit_sites.is_empty() {
+            self.tunnel_flow_vec = (0.0, 0.0);
+        } else {
+            let ec = Self::compute_centroid(&self.entry_sites, width);
+            let tc = Self::compute_centroid(&self.tunnel_exit_sites, width);
+            self.tunnel_flow_vec = (tc.0 - ec.0, tc.1 - ec.1);
+        }
+    }
+
+    /// Average heat over tunnel exit sites.
+    #[inline(always)]
+    pub fn avg_tunnel_heat(&self, heat: &[f32]) -> f32 {
+        if self.tunnel_exit_sites.is_empty() {
+            return 0.0;
+        }
+        let mut sum = 0.0f32;
+        for &idx in &self.tunnel_exit_sites {
+            sum += heat[idx];
+        }
+        sum / (self.tunnel_exit_sites.len() as f32)
+    }
+
+    /// Update tunnel score and cached tunnel heat.
+    #[inline(always)]
+    pub fn update_tunnel_score(&mut self, score: f32, heat: &[f32]) {
+        self.tunnel_score = score;
+        self.tunnel_heat = self.avg_tunnel_heat(heat);
+    }
+
+    /// Update tunnel reliability (0.0–1.0).
+    #[inline(always)]
+    pub fn update_tunnel_reliability(&mut self, reliability: f32) {
+        self.tunnel_reliability = reliability.clamp(0.0, 1.0);
     }
 }
 

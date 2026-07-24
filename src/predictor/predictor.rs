@@ -12,6 +12,7 @@ use crate::spatial::cross_link_grid::CrossLinkGrid;
 /// - chain smoothing
 /// - pattern memory with decay
 /// - cross‑link grid integration
+/// - tunneling‑aware routing
 #[derive(Clone)]
 pub struct Predictor {
     pub weight_syndrome: f32,
@@ -19,6 +20,11 @@ pub struct Predictor {
     pub weight_semantic: f32,
     pub weight_doors: f32,
     pub weight_smoothing: f32,
+
+    // --- NEW: tunneling weights ---
+    pub weight_tunnel: f32,
+    pub weight_tunnel_semantic: f32,
+    pub weight_tunnel_reliability: f32,
 
     pub pattern_memory: Vec<(u64, Correction, f32)>,
     pub gpu: Option<std::sync::Arc<dyn GpuBackend>>,
@@ -33,6 +39,12 @@ impl Predictor {
             weight_semantic: 0.5,
             weight_doors: 0.6,
             weight_smoothing: 0.4,
+
+            // --- NEW ---
+            weight_tunnel: 0.8,
+            weight_tunnel_semantic: 0.4,
+            weight_tunnel_reliability: 1.0,
+
             pattern_memory: Vec::with_capacity(256),
             gpu: None,
         }
@@ -53,12 +65,20 @@ impl Predictor {
         wsem: f32,
         wdoor: f32,
         wsmooth: f32,
+        wtunnel: f32,
+        wtunnel_sem: f32,
+        wtunnel_rel: f32,
     ) {
         self.weight_syndrome = ws;
         self.weight_geometry = wg;
         self.weight_semantic = wsem;
         self.weight_doors = wdoor;
         self.weight_smoothing = wsmooth;
+
+        // --- NEW ---
+        self.weight_tunnel = wtunnel;
+        self.weight_tunnel_semantic = wtunnel_sem;
+        self.weight_tunnel_reliability = wtunnel_rel;
     }
 
     /// Main prediction pipeline.
@@ -69,14 +89,14 @@ impl Predictor {
         semantic: &SemanticScratchpad,
         fused_heat: &Vec<f32>,
         doors: &Vec<RevolvingDoor>,
-        cross: &CrossLinkGrid,        // <-- NEW
+        cross: &CrossLinkGrid,
     ) -> Correction {
         // --- 1. Base prediction (GPU or CPU) ---
         let mut corr = if let Some(gpu) = &self.gpu {
             let ops = gpu.predictor_pass(&syndrome.bits, fused_heat, doors);
             Correction { ops, energy: 0.0 }
         } else {
-            self.base_prediction(spatial, fused_heat, cross)
+            self.base_prediction(spatial, fused_heat, semantic, cross)
         };
 
         // --- 2. Semantic refinement ---
@@ -87,7 +107,7 @@ impl Predictor {
             gpu.door_routing(&mut corr.ops, fused_heat, doors);
             gpu.smooth_chains(&mut corr.ops);
         } else {
-            self.apply_door_routing(&mut corr, fused_heat, doors, cross);
+            self.apply_door_routing(&mut corr, fused_heat, doors, semantic, cross);
             self.smooth_chains(&mut corr);
         }
 
@@ -100,13 +120,14 @@ impl Predictor {
     }
 
     // -------------------------------------------------------------------------
-    // CPU base prediction + cross‑link cluster bias
+    // CPU base prediction + cross‑link cluster bias + tunneling bias
     // -------------------------------------------------------------------------
     #[inline(always)]
     fn base_prediction(
         &self,
         spatial: &SpatialScratchpad,
         fused_heat: &Vec<f32>,
+        semantic: &SemanticScratchpad,
         cross: &CrossLinkGrid,
     ) -> Correction {
         let mut ops = vec![0u8; fused_heat.len()];
@@ -118,6 +139,13 @@ impl Predictor {
                 // cluster‑aware boosting
                 if let Some(cluster_idx) = cross.cluster_for(idx) {
                     let c_energy = spatial.local_energy[cluster_idx];
+
+                    // --- NEW: tunneling cluster bias ---
+                    if semantic.tunnel_strength > 1.5 && c_energy > 1.0 {
+                        ops[idx] = 1;
+                        continue;
+                    }
+
                     if c_energy > 2.0 {
                         ops[idx] = 1;
                         continue;
@@ -134,7 +162,7 @@ impl Predictor {
     }
 
     // -------------------------------------------------------------------------
-    // Semantic refinement + cross‑link semantic tag bias
+    // Semantic refinement + cross‑link semantic tag bias + tunneling semantic bias
     // -------------------------------------------------------------------------
     #[inline(always)]
     fn semantic_refine(
@@ -153,11 +181,21 @@ impl Predictor {
                     }
                 }
             }
+
+            // --- NEW: semantic tunnel refinement ---
+            if semantic.tunnel_strength > 2.0 && *op == 1 {
+                if let Some(tag_idx) = cross.semantic_tag_for(idx) {
+                    let tag = semantic.pattern_tags[tag_idx];
+                    if tag > 2 {
+                        *op = 2;
+                    }
+                }
+            }
         }
     }
 
     // -------------------------------------------------------------------------
-    // Door routing + cross‑link door bias
+    // Door routing + tunneling scoring + fallback
     // -------------------------------------------------------------------------
     #[inline(always)]
     fn apply_door_routing(
@@ -165,6 +203,7 @@ impl Predictor {
         corr: &mut Correction,
         fused_heat: &Vec<f32>,
         doors: &Vec<RevolvingDoor>,
+        semantic: &SemanticScratchpad,
         cross: &CrossLinkGrid,
     ) {
         for door in doors {
@@ -173,8 +212,23 @@ impl Predictor {
 
             let favor_exit = exit_avg > entry_avg;
 
+            // --- NEW: tunneling score ---
+            let tunnel_score = door.tunnel_score * self.weight_tunnel;
+            let tunnel_heat = door.tunnel_heat;
+            let tunnel_rel = door.tunnel_reliability * self.weight_tunnel_reliability;
+            let semantic_bias = semantic.tunnel_bias * self.weight_tunnel_semantic;
+
+            let final_tunnel_score =
+                tunnel_score + tunnel_heat * 0.3 + tunnel_rel + semantic_bias;
+
             for &idx in &door.exit_sites {
                 let heat = fused_heat[idx];
+
+                // --- NEW: tunnel fallback ---
+                if final_tunnel_score > 1.2 && corr.ops[idx] == 0 {
+                    corr.ops[idx] = 1;
+                    continue;
+                }
 
                 // door‑aware bias
                 if let Some(door_id) = cross.door_for(idx) {

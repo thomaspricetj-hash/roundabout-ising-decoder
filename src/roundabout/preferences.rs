@@ -8,6 +8,20 @@ pub struct RoundaboutPreferences {
 
     /// Bias toward lateral escape routes.
     pub lateral_escape_bias: f32,
+
+    // --- NEW: Tunneling Preferences ---
+
+    /// Learned bias toward selecting tunnel exits.
+    pub tunnel_bias: f32,
+
+    /// Reliability score for tunnel routing (0.0–1.0).
+    pub tunnel_reliability: f32,
+
+    /// Penalty applied when tunnel jitter or instability is detected.
+    pub tunnel_stability_penalty: f32,
+
+    /// Bias applied when congestion is detected on physical exits.
+    pub tunnel_fallback_bias: f32,
 }
 
 impl RoundaboutPreferences {
@@ -18,6 +32,11 @@ impl RoundaboutPreferences {
             exit_bias: 1.0,
             curvature_bias: 1.0,
             lateral_escape_bias: 1.0,
+
+            tunnel_bias: 0.0,
+            tunnel_reliability: 1.0,
+            tunnel_stability_penalty: 0.0,
+            tunnel_fallback_bias: 0.0,
         }
     }
 
@@ -28,6 +47,11 @@ impl RoundaboutPreferences {
             exit_bias: 1.6,
             curvature_bias: 0.9,
             lateral_escape_bias: 0.7,
+
+            tunnel_bias: 0.2,
+            tunnel_reliability: 1.0,
+            tunnel_stability_penalty: 0.0,
+            tunnel_fallback_bias: 0.1,
         }
     }
 
@@ -38,6 +62,11 @@ impl RoundaboutPreferences {
             exit_bias: 0.7,
             curvature_bias: 1.2,
             lateral_escape_bias: 1.1,
+
+            tunnel_bias: 0.1,
+            tunnel_reliability: 1.0,
+            tunnel_stability_penalty: 0.0,
+            tunnel_fallback_bias: 0.2,
         }
     }
 
@@ -48,6 +77,11 @@ impl RoundaboutPreferences {
             exit_bias: 0.9,
             curvature_bias: 1.5,
             lateral_escape_bias: 0.8,
+
+            tunnel_bias: 0.15,
+            tunnel_reliability: 1.0,
+            tunnel_stability_penalty: 0.0,
+            tunnel_fallback_bias: 0.15,
         }
     }
 
@@ -57,12 +91,14 @@ impl RoundaboutPreferences {
         let max = self
             .exit_bias
             .max(self.curvature_bias)
-            .max(self.lateral_escape_bias);
+            .max(self.lateral_escape_bias)
+            .max(self.tunnel_bias);
 
         if max > 1e-6 {
             self.exit_bias /= max;
             self.curvature_bias /= max;
             self.lateral_escape_bias /= max;
+            self.tunnel_bias /= max;
         }
     }
 
@@ -72,6 +108,11 @@ impl RoundaboutPreferences {
         self.exit_bias = self.exit_bias.clamp(min, max);
         self.curvature_bias = self.curvature_bias.clamp(min, max);
         self.lateral_escape_bias = self.lateral_escape_bias.clamp(min, max);
+
+        self.tunnel_bias = self.tunnel_bias.clamp(min, max);
+        self.tunnel_reliability = self.tunnel_reliability.clamp(0.0, 1.0);
+        self.tunnel_stability_penalty = self.tunnel_stability_penalty.clamp(0.0, max);
+        self.tunnel_fallback_bias = self.tunnel_fallback_bias.clamp(min, max);
     }
 
     /// Blend two preference profiles.
@@ -83,11 +124,23 @@ impl RoundaboutPreferences {
         self.exit_bias = a * self.exit_bias + b * other.exit_bias;
         self.curvature_bias = a * self.curvature_bias + b * other.curvature_bias;
         self.lateral_escape_bias = a * self.lateral_escape_bias + b * other.lateral_escape_bias;
+
+        self.tunnel_bias = a * self.tunnel_bias + b * other.tunnel_bias;
+        self.tunnel_reliability = a * self.tunnel_reliability + b * other.tunnel_reliability;
+        self.tunnel_stability_penalty =
+            a * self.tunnel_stability_penalty + b * other.tunnel_stability_penalty;
+        self.tunnel_fallback_bias =
+            a * self.tunnel_fallback_bias + b * other.tunnel_fallback_bias;
     }
 
     /// Zero‑cost inline: return as tuple for SIMD‑friendly operations.
     #[inline(always)]
-    pub fn as_tuple(&self) -> (f32, f32, f32) {
-        (self.exit_bias, self.curvature_bias, self.lateral_escape_bias)
+    pub fn as_tuple(&self) -> (f32, f32, f32, f32) {
+        (
+            self.exit_bias,
+            self.curvature_bias,
+            self.lateral_escape_bias,
+            self.tunnel_bias,
+        )
     }
 }
