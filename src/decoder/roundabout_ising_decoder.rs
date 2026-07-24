@@ -1,16 +1,14 @@
 use crate::types::{Syndrome, Correction, LatticeGeometry};
 use crate::heatmaps::{SyndromeHeatmap, GeometryHeatmap};
 use crate::scratchpads::{SpatialScratchpad, SemanticScratchpad};
-use crate::indexes::{SpatialIndex, SemanticIndex};
 use crate::roundabout::{RoundaboutPreferences, RevolvingDoor};
 use crate::ising::IsingSolver;
 use crate::predictor::Predictor;
+use crate::spatial::cross_link_grid::CrossLinkGrid;
 
 pub struct RoundaboutIsingDecoder {
     geom: LatticeGeometry,
     roundabout: RoundaboutPreferences,
-    spatial_index: SpatialIndex,
-    semantic_index: SemanticIndex,
     doors: Vec<RevolvingDoor>,
     solver: IsingSolver,
     predictor: Predictor,
@@ -20,16 +18,14 @@ impl RoundaboutIsingDecoder {
     pub fn new(
         geom: LatticeGeometry,
         roundabout: RoundaboutPreferences,
-        spatial_index: SpatialIndex,
-        semantic_index: SemanticIndex,
+        _spatial_index: crate::indexes::SpatialIndex,
+        _semantic_index: crate::indexes::SemanticIndex,
         doors: Vec<RevolvingDoor>,
     ) -> Self {
         let solver = IsingSolver::new(geom.width, geom.height);
         Self {
             geom,
             roundabout,
-            spatial_index,
-            semantic_index,
             doors,
             solver,
             predictor: Predictor::new(),
@@ -45,16 +41,35 @@ impl RoundaboutIsingDecoder {
         let spatial_sp = SpatialScratchpad::build(&syn_heat, &geo_heat);
         let semantic_sp = SemanticScratchpad::build(syndrome);
 
-        let predicted = self
-            .predictor
-            .predict(syndrome, &spatial_sp, &semantic_sp, &fused_heat, &self.doors);
+        let cross = CrossLinkGrid::build(
+            &self.geom,
+            &spatial_sp,
+            &semantic_sp,
+            &self.doors,
+        );
+
+        let predicted = self.predictor.predict(
+            syndrome,
+            &spatial_sp,
+            &semantic_sp,
+            &fused_heat,
+            &self.doors,
+            &cross,
+        );
 
         let mut candidates = self.initial_candidates(&spatial_sp, &semantic_sp, &fused_heat);
         candidates.push(predicted);
 
         let biased = self.apply_roundabout_bias(candidates, &fused_heat);
 
-        self.solver.minimize(syndrome, biased)
+        self.solver.minimize(
+            syndrome,
+            biased,
+            &spatial_sp,
+            &semantic_sp,
+            &self.doors,
+            &cross,
+        )
     }
 
     fn fuse_heatmaps(
@@ -65,10 +80,7 @@ impl RoundaboutIsingDecoder {
         syn.cells
             .iter()
             .zip(geo.cells.iter())
-            .map(|(s, g)| {
-                let base = 0.7 * s + 0.3 * g;
-                base
-            })
+            .map(|(s, g)| 0.7 * s + 0.3 * g)
             .collect()
     }
 
@@ -137,4 +149,5 @@ impl RoundaboutIsingDecoder {
         sum / (sites.len() as f32)
     }
 }
+
 

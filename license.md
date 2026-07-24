@@ -312,3 +312,27 @@ This Agreement is governed by the laws of the State of Kentucky, without regard 
 
 This Agreement constitutes the entire agreement between the parties and supersedes all prior agreements.
 
+
+
+All updates, upgrades, enhancements, modifications, extensions, revisions, 
+
+and derivative components of the Roundabout Ising Decoder—including but not 
+
+limited to new features, performance improvements, GPU kernels, routing systems, 
+
+predictor refinements, memory systems, solver upgrades, architectural changes, 
+
+and any future additions to this codebase—are automatically covered under the 
+
+terms of this license. No update or upgrade shall constitute a grant of new 
+
+rights, expanded rights, or altered rights beyond those explicitly stated in 
+
+this license. All improvements remain evaluation‑only, non‑transferable, and 
+
+subject to the same restrictions, limitations, and permitted uses as the 
+
+original licensed materials.
+
+
+
